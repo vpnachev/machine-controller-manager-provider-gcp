@@ -56,12 +56,12 @@ func (spi *PluginSPIImpl) NewComputeService(secret *corev1.Secret) (context.Cont
 	ctx := context.Background()
 	serviceAccountJSON := extractCredentialsFromData(secret.Data, api.GCPServiceAccountJSON, api.GCPAlternativeServiceAccountJSON)
 
-	jwt, err := google.JWTConfigFromJSON([]byte(serviceAccountJSON), compute.CloudPlatformScope)
+	creds, err := google.CredentialsFromJSONWithParams(ctx, []byte(serviceAccountJSON), google.CredentialsParams{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse serviceAccountJSON secret value: %w", err)
 	}
 
-	clientOption := option.WithTokenSource(jwt.TokenSource(ctx))
+	clientOption := option.WithTokenSource(creds.TokenSource)
 	computeService, err := compute.NewService(ctx, clientOption)
 	if err != nil {
 		return nil, nil, err

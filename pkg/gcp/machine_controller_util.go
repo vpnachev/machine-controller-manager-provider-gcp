@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -391,12 +392,36 @@ func ExtractProject(credentialsData map[string][]byte) (string, error) {
 	serviceAccountJSON := extractCredentialsFromData(credentialsData, api.GCPServiceAccountJSON, api.GCPAlternativeServiceAccountJSON)
 
 	var j struct {
-		Project string `json:"project_id"`
+		Project          string `json:"project_id"`
+		ImpersonationURL string `json:"service_account_impersonation_url"`
 	}
 	if err := json.Unmarshal([]byte(serviceAccountJSON), &j); err != nil {
 		return "Error", err
 	}
-	return j.Project, nil
+
+	if j.Project != "" {
+		return j.Project, nil
+	}
+
+	u, err := url.Parse(j.ImpersonationURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse impersonation URL, %+w", err)
+	}
+
+	paths := strings.Split(u.Path, "/")
+	projectURL := paths[len(paths)-1]
+	projectURLParts := strings.FieldsFunc(
+		projectURL,
+		func(c rune) bool { return c == rune('@') || c == rune(':') },
+	)
+
+	projectHost := projectURLParts[1]
+	projectID := strings.Split(projectHost, ".")[0]
+
+	if projectID == "" {
+		return "", fmt.Errorf("no service account specified")
+	}
+	return projectID, nil
 }
 
 // WaitUntilOperationCompleted waits for the specified operation to be completed and returns true if it does else returns false
