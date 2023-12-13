@@ -31,7 +31,6 @@ import (
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog/v2"
 
 	api "github.com/gardener/machine-controller-manager-provider-gcp/pkg/api/v1alpha1"
 )
@@ -59,8 +58,7 @@ func (spi *PluginSPIImpl) NewComputeService(secret *corev1.Secret) (context.Cont
 	serviceAccountJSON := extractCredentialsFromData(secret.Data, api.GCPServiceAccountJSON, api.GCPAlternativeServiceAccountJSON)
 
 	// slog.Info("Log parsed Service Account JSON", "serviceaccount.json", string(serviceAccountJSON))
-	klog.Info("Log parsed Service Account JSON", "serviceaccount.json", string(serviceAccountJSON))
-	creds, err := google.CredentialsFromJSONWithParams(ctx, []byte(serviceAccountJSON), google.CredentialsParams{})
+	creds, err := google.CredentialsFromJSONWithParams(ctx, []byte(serviceAccountJSON), google.CredentialsParams{Scopes: []string{compute.CloudPlatformScope}})
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse serviceAccountJSON secret value: %w", err)
 	}
@@ -70,6 +68,7 @@ func (spi *PluginSPIImpl) NewComputeService(secret *corev1.Secret) (context.Cont
 	if err != nil {
 		return nil, nil, err
 	}
+
 	return ctx, computeService, nil
 
 }
